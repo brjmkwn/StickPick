@@ -293,7 +293,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         repo.storage.savePack(pack)
     }
 
-    fun loadSavedPacks() { _savedPacks.value = repo.storage.loadPacks() }
+    fun loadSavedPacks() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val packs = repo.storage.loadPacks()
+            _savedPacks.value = packs
+        }
+    }
     fun deletePack(id: String) { repo.storage.deletePack(id); loadSavedPacks() }
 
     fun updatePackName(id: String, newName: String) {

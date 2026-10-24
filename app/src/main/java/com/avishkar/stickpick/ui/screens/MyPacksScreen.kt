@@ -312,11 +312,16 @@ private fun PackCard(
 @Composable
 private fun PackDetailDialog(pack: StickerPack, packStorage: PackStorage, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val baseId = remember(pack.identifier) {
-        val last = pack.identifier.lastIndexOf('_')
-        if (last > 0) pack.identifier.substring(0, last) else pack.identifier
+    val convertedDir = remember(pack.identifier) {
+        val exactDir = packStorage.getConvertedDir(pack.identifier)
+        if (exactDir.exists() && exactDir.listFiles()?.isNotEmpty() == true) {
+            exactDir
+        } else {
+            val last = pack.identifier.lastIndexOf('_')
+            val baseId = if (last > 0) pack.identifier.substring(0, last) else pack.identifier
+            packStorage.getConvertedDir(baseId)
+        }
     }
-    val convertedDir = remember(baseId) { packStorage.getConvertedDir(baseId) }
 
     Dialog(
         onDismissRequest = onDismiss,

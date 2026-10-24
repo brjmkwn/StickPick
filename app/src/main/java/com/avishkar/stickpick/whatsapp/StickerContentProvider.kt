@@ -12,7 +12,6 @@ import android.util.Log
 import com.avishkar.stickpick.data.local.PackStorage
 import com.avishkar.stickpick.data.model.StickerPack
 import java.io.File
-import java.io.FileNotFoundException
 
 class StickerContentProvider : ContentProvider() {
 
@@ -56,25 +55,15 @@ class StickerContentProvider : ContentProvider() {
         matcher.addURI(AUTHORITY, METADATA, METADATA_CODE)
         matcher.addURI(AUTHORITY, "$METADATA/*", METADATA_CODE_FOR_SINGLE_PACK)
         matcher.addURI(AUTHORITY, "$STICKERS/*", STICKERS_CODE)
-        // Register dynamic URIs for each pack's assets
-        refreshUriMatcher()
+        // High-speed static wildcard matching: eliminates 11,000+ repetitive UriMatcher loop registrations
+        matcher.addURI(AUTHORITY, "$STICKERS_ASSET/*/*", STICKERS_ASSET_CODE)
         return true
-    }
-
-    private fun refreshUriMatcher() {
-        for (pack in packStorage.loadPacks()) {
-            matcher.addURI(AUTHORITY, "$STICKERS_ASSET/${pack.identifier}/${pack.trayImageFile}", STICKER_PACK_TRAY_ICON_CODE)
-            for (sticker in pack.stickers) {
-                matcher.addURI(AUTHORITY, "$STICKERS_ASSET/${pack.identifier}/${sticker.imageFileName}", STICKERS_ASSET_CODE)
-            }
-        }
     }
 
     override fun query(
         uri: Uri, projection: Array<out String>?, selection: String?,
         selectionArgs: Array<out String>?, sortOrder: String?
     ): Cursor? {
-        refreshUriMatcher()
         return when (matcher.match(uri)) {
             METADATA_CODE -> getPacksCursor(uri)
             METADATA_CODE_FOR_SINGLE_PACK -> getSinglePackCursor(uri)
@@ -84,7 +73,6 @@ class StickerContentProvider : ContentProvider() {
     }
 
     override fun openAssetFile(uri: Uri, mode: String): AssetFileDescriptor? {
-        refreshUriMatcher()
         val matchCode = matcher.match(uri)
         if (matchCode == STICKERS_ASSET_CODE || matchCode == STICKER_PACK_TRAY_ICON_CODE) {
             return getImageAsset(uri)
@@ -93,7 +81,6 @@ class StickerContentProvider : ContentProvider() {
     }
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor? {
-        refreshUriMatcher()
         val matchCode = matcher.match(uri)
         if (matchCode == STICKERS_ASSET_CODE || matchCode == STICKER_PACK_TRAY_ICON_CODE) {
             return getFileDescriptor(uri)
@@ -123,13 +110,12 @@ class StickerContentProvider : ContentProvider() {
     }
 
     private fun resolveFile(identifier: String, fileName: String): File? {
-        // Try exact pack dir
+        // 1. Try exact pack dir (instant O(1))
         val dir = packStorage.getConvertedDir(identifier)
         var file = File(dir, fileName)
         if (file.exists()) return file
 
-        // For split packs (_1, _2, _s3), try base pack dir
-        // Strip last _anything suffix
+        // 2. For split packs, try base pack dir
         val lastUnderscore = identifier.lastIndexOf('_')
         if (lastUnderscore > 0) {
             val baseId = identifier.substring(0, lastUnderscore)
@@ -159,7 +145,9 @@ class StickerContentProvider : ContentProvider() {
     private fun getSinglePackCursor(uri: Uri): Cursor {
         val identifier = uri.lastPathSegment
         val cursor = MatrixCursor(metadataColumns)
-        packStorage.loadPacks().find { it.identifier == identifier }?.let { addPackRow(cursor, it) }
+        if (identifier != null) {
+            packStorage.getPack(identifier)?.let { addPackRow(cursor, it) }
+        }
         cursor.setNotificationUri(context!!.contentResolver, uri)
         return cursor
     }
@@ -184,20 +172,24 @@ class StickerContentProvider : ContentProvider() {
     private fun getStickersCursor(uri: Uri): Cursor {
         val identifier = uri.lastPathSegment
         val cursor = MatrixCursor(arrayOf(STICKER_FILE_NAME, STICKER_FILE_EMOJI))
-        packStorage.loadPacks().find { it.identifier == identifier }?.stickers?.forEach { sticker ->
-            cursor.addRow(arrayOf(sticker.imageFileName, sticker.emojis.joinToString(",")))
+        if (identifier != null) {
+            packStorage.getPack(identifier)?.stickers?.forEach { sticker ->
+                cursor.addRow(arrayOf(sticker.imageFileName, sticker.emojis.joinToString(",")))
+            }
         }
         cursor.setNotificationUri(context!!.contentResolver, uri)
         return cursor
     }
 
     override fun getType(uri: Uri): String {
-        refreshUriMatcher()
         return when (matcher.match(uri)) {
             METADATA_CODE -> "vnd.android.cursor.dir/vnd.$AUTHORITY.$METADATA"
             METADATA_CODE_FOR_SINGLE_PACK -> "vnd.android.cursor.item/vnd.$AUTHORITY.$METADATA"
             STICKERS_CODE -> "vnd.android.cursor.dir/vnd.$AUTHORITY.$STICKERS"
-            STICKERS_ASSET_CODE -> "image/webp"
+            STICKERS_ASSET_CODE -> {
+                val last = uri.lastPathSegment ?: ""
+                if (last.contains("tray") || last.endsWith(".png")) "image/png" else "image/webp"
+            }
             STICKER_PACK_TRAY_ICON_CODE -> "image/png"
             else -> "application/octet-stream"
         }
