@@ -39,6 +39,7 @@ import com.avishkar.stickpick.data.local.PackStorage
 import com.avishkar.stickpick.data.model.StickerPack
 import com.avishkar.stickpick.ui.navigation.Routes
 import com.avishkar.stickpick.viewmodel.MainViewModel
+import com.avishkar.stickpick.whatsapp.PackArchiveHelper
 import com.avishkar.stickpick.whatsapp.WhatsAppIntentHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -237,6 +238,10 @@ private fun PackCard(
                     Text("Tap to view stickers", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                 }
+                IconButton(onClick = { PackArchiveHelper.sharePack(context, pack, packStorage) }) {
+                    Icon(Icons.Outlined.Share, contentDescription = "Share",
+                        tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                }
                 IconButton(onClick = { showEditDialog = true }) {
                     Icon(Icons.Outlined.Edit, contentDescription = "Edit",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
@@ -339,6 +344,9 @@ private fun PackDetailDialog(pack: StickerPack, packStorage: PackStorage, onDism
                         Text(pack.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text("${pack.stickers.size} stickers", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    IconButton(onClick = { PackArchiveHelper.sharePack(context, pack, packStorage) }) {
+                        Icon(Icons.Outlined.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close") }
                 }
