@@ -154,20 +154,19 @@ class StickerContentProvider : ContentProvider() {
 
     private fun addPackRow(cursor: MatrixCursor, pack: StickerPack) {
         val builder = cursor.newRow()
-        builder.add(pack.identifier)
-        builder.add(pack.name)
-        builder.add(pack.publisher)
-        builder.add(pack.trayImageFile)
-        val playStoreLink = pack.androidPlayStoreLink.ifEmpty { "https://play.google.com/store/apps/details?id=com.avishkar.stickpick" }
-        builder.add(playStoreLink)
-        builder.add(pack.iosAppStoreLink.ifEmpty { "" })
-        builder.add(pack.publisherEmail.ifEmpty { "" })
-        builder.add(pack.publisherWebsite.ifEmpty { "" })
-        builder.add(pack.privacyPolicyWebsite.ifEmpty { "" })
-        builder.add(pack.licenseAgreementWebsite.ifEmpty { "" })
-        builder.add(pack.imageDataVersion)
-        builder.add(if (pack.avoidCache) 1 else 0)
-        builder.add(if (pack.animatedStickerPack) 1 else 0)
+        builder.add(pack.identifier ?: "")
+        builder.add(pack.name ?: "")
+        builder.add(pack.publisher ?: "")
+        builder.add(pack.trayImageFile ?: "")
+        builder.add("")
+        builder.add("")
+        builder.add(pack.publisherEmail ?: "")
+        builder.add(pack.publisherWebsite ?: "")
+        builder.add(pack.privacyPolicyWebsite ?: "")
+        builder.add(pack.licenseAgreementWebsite ?: "")
+        builder.add(pack.imageDataVersion ?: "1")
+        builder.add(if (pack.avoidCache == true) 1 else 0)
+        builder.add(if (pack.animatedStickerPack == true) 1 else 0)
     }
 
     private fun getStickersCursor(uri: Uri): Cursor {
@@ -175,7 +174,8 @@ class StickerContentProvider : ContentProvider() {
         val cursor = MatrixCursor(arrayOf(STICKER_FILE_NAME, STICKER_FILE_EMOJI))
         if (identifier != null) {
             packStorage.getPack(identifier)?.stickers?.forEach { sticker ->
-                cursor.addRow(arrayOf(sticker.imageFileName, sticker.emojis.joinToString(",")))
+                val emojisStr = sticker.emojis?.joinToString(",")?.ifEmpty { "😀" } ?: "😀"
+                cursor.addRow(arrayOf(sticker.imageFileName ?: "", emojisStr))
             }
         }
         cursor.setNotificationUri(context!!.contentResolver, uri)
