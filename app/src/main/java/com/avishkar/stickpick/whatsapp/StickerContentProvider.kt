@@ -55,6 +55,8 @@ class StickerContentProvider : ContentProvider() {
         matcher.addURI(AUTHORITY, METADATA, METADATA_CODE)
         matcher.addURI(AUTHORITY, "$METADATA/*", METADATA_CODE_FOR_SINGLE_PACK)
         matcher.addURI(AUTHORITY, "$STICKERS/*", STICKERS_CODE)
+        matcher.addURI(AUTHORITY, "$STICKERS_ASSET/*/tray.png", STICKER_PACK_TRAY_ICON_CODE)
+        matcher.addURI(AUTHORITY, "$STICKERS_ASSET/*/*.png", STICKER_PACK_TRAY_ICON_CODE)
         // High-speed static wildcard matching: eliminates 11,000+ repetitive UriMatcher loop registrations
         matcher.addURI(AUTHORITY, "$STICKERS_ASSET/*/*", STICKERS_ASSET_CODE)
         return true
@@ -80,6 +82,14 @@ class StickerContentProvider : ContentProvider() {
         return null
     }
 
+    override fun openTypedAssetFile(
+        uri: Uri,
+        mimeTypeFilter: String,
+        opts: android.os.Bundle?
+    ): AssetFileDescriptor? {
+        return openAssetFile(uri, "r")
+    }
+
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor? {
         val matchCode = matcher.match(uri)
         if (matchCode == STICKERS_ASSET_CODE || matchCode == STICKER_PACK_TRAY_ICON_CODE) {
@@ -96,7 +106,7 @@ class StickerContentProvider : ContentProvider() {
         val file = resolveFile(identifier, fileName) ?: return null
         return AssetFileDescriptor(
             ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY),
-            0, AssetFileDescriptor.UNKNOWN_LENGTH
+            0, file.length()
         )
     }
 
@@ -110,8 +120,17 @@ class StickerContentProvider : ContentProvider() {
     }
 
     private fun resolveFile(identifier: String, fileName: String): File? {
-        // 1. Try exact pack dir (instant O(1))
         val dir = packStorage.getConvertedDir(identifier)
+
+        // Special handling for tray icon requests
+        if (fileName.contains("tray") || fileName.endsWith(".png") || fileName == "$identifier.png") {
+            for (candidate in listOf("tray.png", "tray_icon.png", fileName, "tray.webp", "tray_icon.webp")) {
+                val f = File(dir, candidate)
+                if (f.exists()) return f
+            }
+        }
+
+        // 1. Try exact pack dir (instant O(1))
         var file = File(dir, fileName)
         if (file.exists()) return file
 
@@ -119,7 +138,14 @@ class StickerContentProvider : ContentProvider() {
         val lastUnderscore = identifier.lastIndexOf('_')
         if (lastUnderscore > 0) {
             val baseId = identifier.substring(0, lastUnderscore)
-            file = File(packStorage.getConvertedDir(baseId), fileName)
+            val baseDir = packStorage.getConvertedDir(baseId)
+            if (fileName.contains("tray") || fileName.endsWith(".png") || fileName == "$identifier.png") {
+                for (candidate in listOf("tray.png", "tray_icon.png", fileName, "tray.webp", "tray_icon.webp")) {
+                    val f = File(baseDir, candidate)
+                    if (f.exists()) return f
+                }
+            }
+            file = File(baseDir, fileName)
             if (file.exists()) return file
         }
 
