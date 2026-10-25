@@ -17,15 +17,18 @@ class PackStorage(private val context: Context) {
     private val indexFile get() = File(packsDir, "packs_index.json")
 
     companion object {
+        private val lock = Any()
         @Volatile
         private var cachedPacks: List<StickerPack>? = null
         private val packMap = ConcurrentHashMap<String, StickerPack>()
         private var lastModified: Long = 0
 
         fun invalidateCache() {
-            cachedPacks = null
-            packMap.clear()
-            lastModified = 0
+            synchronized(lock) {
+                cachedPacks = null
+                packMap.clear()
+                lastModified = 0
+            }
         }
     }
 
@@ -39,7 +42,7 @@ class PackStorage(private val context: Context) {
         if (currentCache != null && currentMod == lastModified) {
             return currentCache
         }
-        return synchronized(this) {
+        return synchronized(lock) {
             val checkCache = cachedPacks
             if (checkCache != null && indexFile.lastModified() == lastModified) {
                 checkCache
@@ -68,7 +71,7 @@ class PackStorage(private val context: Context) {
     }
 
     fun savePacks(packs: List<StickerPack>) {
-        synchronized(this) {
+        synchronized(lock) {
             indexFile.writeText(gson.toJson(packs))
             lastModified = indexFile.lastModified()
             cachedPacks = packs

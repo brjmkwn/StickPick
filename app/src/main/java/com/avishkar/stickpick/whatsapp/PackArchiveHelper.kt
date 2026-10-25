@@ -2,6 +2,8 @@ package com.avishkar.stickpick.whatsapp
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -165,12 +167,18 @@ object PackArchiveHelper {
                 stickersList.add(Sticker(imageFileName = destName, emojis = listOf("✨")))
             }
 
-            val trayName = if (trayFile != null && trayFile.name.endsWith(".png", ignoreCase = true)) "tray.png" else "tray.webp"
-            val finalTray = File(destDir, trayName)
-            if (trayFile != null && trayFile.exists()) {
-                trayFile.copyTo(finalTray, overwrite = true)
-            } else if (stickersList.isNotEmpty()) {
-                File(destDir, stickersList.first().imageFileName).copyTo(finalTray, overwrite = true)
+            val finalTray = File(destDir, "tray.png")
+            val traySource = if (trayFile != null && trayFile.exists()) trayFile else if (stickersList.isNotEmpty()) File(destDir, stickersList.first().imageFileName) else null
+            if (traySource != null && traySource.exists()) {
+                val bmp = BitmapFactory.decodeFile(traySource.absolutePath)
+                if (bmp != null) {
+                    val scaled = Bitmap.createScaledBitmap(bmp, 96, 96, true)
+                    FileOutputStream(finalTray).use { scaled.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                    if (scaled !== bmp) scaled.recycle()
+                    bmp.recycle()
+                } else {
+                    traySource.copyTo(finalTray, overwrite = true)
+                }
             }
 
             tempDir.deleteRecursively()
@@ -179,14 +187,15 @@ object PackArchiveHelper {
                 identifier = packId,
                 name = packTitle.ifEmpty { "Sticker Pack" },
                 publisher = packAuthor.ifEmpty { "StickPick" },
-                trayImageFile = trayName,
-                publisherEmail = "",
-                publisherWebsite = "",
-                privacyPolicyWebsite = "",
-                licenseAgreementWebsite = "",
-                imageDataVersion = "1",
+                trayImageFile = "tray.png",
+                publisherEmail = "support@stickpick.app",
+                publisherWebsite = "https://stickpick.app",
+                privacyPolicyWebsite = "https://stickpick.app/privacy",
+                licenseAgreementWebsite = "https://stickpick.app/license",
+                imageDataVersion = "2",
                 avoidCache = false,
                 animatedStickerPack = hasAnimation,
+                androidPlayStoreLink = "https://play.google.com/store/apps/details?id=com.avishkar.stickpick",
                 stickers = stickersList
             )
 

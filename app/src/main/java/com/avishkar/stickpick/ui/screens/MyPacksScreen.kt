@@ -414,11 +414,15 @@ private fun CachedThumb(file: File, modifier: Modifier = Modifier) {
     if (bitmap == null) {
         LaunchedEffect(path) {
             val bmp = withContext(Dispatchers.IO) {
+                val r = MediaMetadataRetriever()
                 try {
-                    val r = MediaMetadataRetriever(); r.setDataSource(path)
-                    val frame = r.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                    r.release(); frame
-                } catch (e: Exception) { null }
+                    r.setDataSource(path)
+                    r.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                } catch (e: Exception) {
+                    null
+                } finally {
+                    try { r.release() } catch (_: Exception) {}
+                }
             }
             if (bmp != null) { packThumbCache.put(path, bmp); bitmap = bmp }
         }
