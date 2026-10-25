@@ -191,7 +191,7 @@ class StickerContentProvider : ContentProvider() {
         builder.add(pack.publisherWebsite ?: "")
         builder.add(pack.privacyPolicyWebsite ?: "")
         builder.add(pack.licenseAgreementWebsite ?: "")
-        builder.add(pack.imageDataVersion ?: "1")
+        builder.add(pack.imageDataVersion?.ifEmpty { "2" } ?: "2")
         builder.add(if (pack.avoidCache == true) 1 else 0)
         builder.add(if (pack.animatedStickerPack == true) 1 else 0)
     }
