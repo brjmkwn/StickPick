@@ -158,8 +158,9 @@ class StickerContentProvider : ContentProvider() {
         builder.add(pack.name ?: "")
         builder.add(pack.publisher ?: "")
         builder.add(pack.trayImageFile ?: "")
-        builder.add("")
-        builder.add("")
+        val storeLink = pack.androidPlayStoreLink?.ifEmpty { "https://play.google.com/store/apps/details?id=com.avishkar.stickpick" } ?: "https://play.google.com/store/apps/details?id=com.avishkar.stickpick"
+        builder.add(storeLink)
+        builder.add(pack.iosAppStoreLink ?: "")
         builder.add(pack.publisherEmail ?: "")
         builder.add(pack.publisherWebsite ?: "")
         builder.add(pack.privacyPolicyWebsite ?: "")
