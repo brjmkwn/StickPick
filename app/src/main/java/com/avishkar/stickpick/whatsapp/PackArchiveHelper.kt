@@ -13,6 +13,7 @@ import com.avishkar.stickpick.data.model.Sticker
 import com.avishkar.stickpick.data.model.StickerPack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -82,22 +83,24 @@ object PackArchiveHelper {
     /**
      * Launches Android Share sheet to send the .wastickers pack directly to WhatsApp contacts or other apps.
      */
-    fun sharePack(context: Context, pack: StickerPack, packStorage: PackStorage) {
+    suspend fun sharePack(context: Context, pack: StickerPack, packStorage: PackStorage) = withContext(Dispatchers.IO) {
         val file = exportPackToWastickers(context, pack, packStorage)
-        if (file == null || !file.exists()) {
-            Toast.makeText(context, "Failed to create sticker pack archive", Toast.LENGTH_SHORT).show()
-            return
-        }
+        withContext(Dispatchers.Main) {
+            if (file == null || !file.exists()) {
+                Toast.makeText(context, "Failed to create sticker pack archive", Toast.LENGTH_SHORT).show()
+                return@withContext
+            }
 
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/octet-stream"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "${pack.name} Stickers")
-            putExtra(Intent.EXTRA_TEXT, "Here is the \"${pack.name}\" sticker pack! Open this file with StickPick to add all stickers to WhatsApp.")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/octet-stream"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "${pack.name} Stickers")
+                putExtra(Intent.EXTRA_TEXT, "Here is the \"${pack.name}\" sticker pack! Open this file with StickPick to add all stickers to WhatsApp.")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "Share Sticker Pack (${pack.name})"))
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Share Sticker Pack (${pack.name})"))
     }
 
     /**
@@ -119,10 +122,14 @@ object PackArchiveHelper {
                     if (!entry.isDirectory && name.isNotEmpty()) {
                         when {
                             name.equals("title.txt", ignoreCase = true) -> {
-                                packTitle = zis.bufferedReader(Charsets.UTF_8).readText().trim()
+                                val bos = ByteArrayOutputStream()
+                                zis.copyTo(bos)
+                                packTitle = bos.toString(Charsets.UTF_8.name()).trim()
                             }
                             name.equals("author.txt", ignoreCase = true) -> {
-                                packAuthor = zis.bufferedReader(Charsets.UTF_8).readText().trim()
+                                val bos = ByteArrayOutputStream()
+                                zis.copyTo(bos)
+                                packAuthor = bos.toString(Charsets.UTF_8.name()).trim()
                             }
                             name.startsWith("tray", ignoreCase = true) -> {
                                 val tFile = File(tempDir, name)

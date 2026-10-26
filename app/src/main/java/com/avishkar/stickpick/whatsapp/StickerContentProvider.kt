@@ -120,6 +120,11 @@ class StickerContentProvider : ContentProvider() {
     }
 
     private fun resolveFile(identifier: String, fileName: String): File? {
+        if (identifier.contains("..") || fileName.contains("..") || identifier.contains("/") || fileName.contains("/")) {
+            Log.w("StickerCP", "Rejected invalid path traversal: $identifier/$fileName")
+            return null
+        }
+
         val dir = packStorage.getConvertedDir(identifier)
 
         // Special handling for tray icon requests

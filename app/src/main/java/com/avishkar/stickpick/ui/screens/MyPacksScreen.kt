@@ -38,6 +38,7 @@ import com.avishkar.stickpick.ui.navigation.Routes
 import com.avishkar.stickpick.viewmodel.MainViewModel
 import com.avishkar.stickpick.whatsapp.PackArchiveHelper
 import com.avishkar.stickpick.whatsapp.WhatsAppIntentHelper
+import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -167,6 +168,7 @@ private fun PackCard(
     onAddToBusiness: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var showEditDialog by remember { mutableStateOf(false) }
     var showDetailDialog by remember { mutableStateOf(false) }
     var editName by remember(pack.name) { mutableStateOf(pack.name) }
@@ -227,7 +229,7 @@ private fun PackCard(
                     Text("Tap to view stickers", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                 }
-                IconButton(onClick = { PackArchiveHelper.sharePack(context, pack, packStorage) }) {
+                IconButton(onClick = { scope.launch { PackArchiveHelper.sharePack(context, pack, packStorage) } }) {
                     Icon(Icons.Outlined.Share, contentDescription = "Share",
                         tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                 }
@@ -306,6 +308,7 @@ private fun PackCard(
 @Composable
 private fun PackDetailDialog(pack: StickerPack, packStorage: PackStorage, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val convertedDir = remember(pack.identifier) {
         val exactDir = packStorage.getConvertedDir(pack.identifier)
         if (exactDir.exists() && exactDir.listFiles()?.isNotEmpty() == true) {
@@ -334,7 +337,7 @@ private fun PackDetailDialog(pack: StickerPack, packStorage: PackStorage, onDism
                         Text("${pack.stickers.size} stickers", style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = { PackArchiveHelper.sharePack(context, pack, packStorage) }) {
+                    IconButton(onClick = { scope.launch { PackArchiveHelper.sharePack(context, pack, packStorage) } }) {
                         Icon(Icons.Outlined.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close") }
