@@ -1,9 +1,6 @@
 package com.avishkar.stickpick.ui.screens
 
 import android.app.Activity
-import android.graphics.Bitmap
-import android.media.MediaMetadataRetriever
-import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -37,19 +33,12 @@ import coil.request.ImageRequest
 import com.avishkar.stickpick.R
 import com.avishkar.stickpick.data.local.PackStorage
 import com.avishkar.stickpick.data.model.StickerPack
+import com.avishkar.stickpick.ui.components.VideoThumbnail
 import com.avishkar.stickpick.ui.navigation.Routes
 import com.avishkar.stickpick.viewmodel.MainViewModel
 import com.avishkar.stickpick.whatsapp.PackArchiveHelper
 import com.avishkar.stickpick.whatsapp.WhatsAppIntentHelper
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
-
-private val packThumbCache = object : LruCache<String, Bitmap>(
-    (Runtime.getRuntime().maxMemory() / 1024 / 16).toInt()
-) {
-    override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount / 1024
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -378,7 +367,7 @@ private fun PackDetailDialog(pack: StickerPack, packStorage: PackStorage, onDism
                                         )
                                     }
                                     rawFile != null && rawFile.exists() && rawFile.extension == "webm" -> {
-                                        CachedThumb(rawFile, Modifier.fillMaxSize())
+                                        VideoThumbnail(rawFile, Modifier.fillMaxSize())
                                     }
                                     else -> {
                                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -407,31 +396,4 @@ private fun PackDetailDialog(pack: StickerPack, packStorage: PackStorage, onDism
     }
 }
 
-@Composable
-private fun CachedThumb(file: File, modifier: Modifier = Modifier) {
-    val path = file.absolutePath
-    var bitmap by remember(path) { mutableStateOf(packThumbCache.get(path)) }
-    if (bitmap == null) {
-        LaunchedEffect(path) {
-            val bmp = withContext(Dispatchers.IO) {
-                val r = MediaMetadataRetriever()
-                try {
-                    r.setDataSource(path)
-                    r.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                } catch (e: Exception) {
-                    null
-                } finally {
-                    try { r.release() } catch (_: Exception) {}
-                }
-            }
-            if (bmp != null) { packThumbCache.put(path, bmp); bitmap = bmp }
-        }
-    }
-    if (bitmap != null) {
-        Image(bitmap = bitmap!!.asImageBitmap(), contentDescription = null, modifier = modifier, contentScale = ContentScale.Fit)
-    } else {
-        Box(modifier, contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-        }
-    }
-}
+
